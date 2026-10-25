@@ -208,7 +208,7 @@
     astratijy: 'استراتيجي', sch_mov: 'المدرسة', asn_mov: 'التخصص', Procedure: 'الإجراء',
     in_mov: 'داخل', m_mov: 'الشهر', y_mov: 'السنة',
     rep1: 'درجة أداء الواجب', rep2: 'درجة كمية العمل', rep3: 'درجة جودة العمل',
-    rep4: 'درجة الحرص', rep5: 'المجموع', rep6: 'التقدير', rep7: 'درجة الكفاءة المعدلة',
+    rep4: 'درجة الحرص والسلوك', rep5: 'المجموع', rep6: 'التقدير', rep7: 'رمز التقدير',
     'تاريخ العلاوة': 'تاريخ العلاوة', 'اشاري العلاوة': 'الرقم الإشاري',
     t7: 'بداية التقرير', t8: 'نهاية التقرير', bon_ch: 'حالة المكافأة',
     mang: 'المدير', mang_up: 'اعتماد المدير', designation1: 'تعيين 1',
@@ -394,6 +394,12 @@
   const NAV = [
     { id: 'dashboard', label: 'لوحة المعلومات', icon: 'home' },
     {
+      label: 'التمام والكفاءة', icon: 'check', items: [
+        { id: 'tamam-sheet', label: 'كشف التمام الأفقي', href: '#/tamam', icon: 'calendar' },
+        { id: 'kafaa-entry', label: 'إدخال تقارير الكفاءة', href: '#/kafaa', icon: 'file' }
+      ]
+    },
+    {
       label: 'الموظفون', icon: 'users', items: [
         { id: 'empolye', label: 'بيانات الموظفين', table: 'empolye' },
         { id: 'NESAB', label: 'الكادر التعليمي', table: 'NESAB' },
@@ -441,10 +447,10 @@
         html += '<div class="nav-group"><div class="nav-title">' + ic(g.icon) + '<span>' + esc(g.label) + '</span></div>';
         g.items.forEach(function (it) {
           const key = it.table || it.id;
-          const href = it.id === 'all' ? '#/all' : '#/t/' + encodeURIComponent(key);
+          const href = it.href || (it.id === 'all' ? '#/all' : '#/t/' + encodeURIComponent(key));
           html += '<a class="nav-item" href="' + href + '" data-nav="' + esc(it.id) + '">' + ic(it.icon || 'file') +
             '<span>' + esc(it.label) + '</span>' +
-            (it.table && MAN[it.table] ? '<span class="nav-badge">' + countOf(it.table) + '</span>' : '') + '</a>';
+            (it.table && !it.href && MAN[it.table] ? '<span class="nav-badge">' + countOf(it.table) + '</span>' : '') + '</a>';
         });
         html += '</div>';
       } else {
@@ -488,6 +494,8 @@
     if (app) app.classList.remove('nav-open');
     markActive();
     if (first === 't' && parts[1]) return renderTablePage(decodeURIComponent(parts[1]));
+    if (first === 'tamam') return renderTamamSheet();
+    if (first === 'kafaa') return renderKafaaEntry();
     if (first === 'schools') return renderSchools();
     if (first === 'reports') return renderReports();
     if (first === 'report' && parts[1]) return renderReport(parts[1]);
@@ -496,87 +504,6 @@
   }
 
   /* ---------------- Dashboard ---------------- */
-  function renderDashboard() {
-    setTitle('لوحة المعلومات', 'نظرة عامة على المنظومة');
-    S.vs = null;
-    const emp = countOf('empolye'), sch = countOf('SCHOOLS'), nes = countOf('NESAB'),
-      des = countOf('Descunt'), rep = countOf('repot'), log = countOf('LOGIN');
-
-    const stats = [
-      { label: 'الموظفون', val: emp, icon: 'users', c: '#0e6e5c', bg: '#e6f4f0', href: '#/t/empolye' },
-      { label: 'المدارس', val: sch, icon: 'school', c: '#175cd3', bg: '#eff8ff', href: '#/schools' },
-      { label: 'الكادر التعليمي', val: nes, icon: 'book', c: '#b54708', bg: '#fffaeb', href: '#/t/NESAB' },
-      { label: 'سجلات الخصم', val: des, icon: 'calendar', c: '#6941c6', bg: '#f4f3ff', href: '#/t/Descunt' },
-      { label: 'تقارير الكفاءة', val: rep, icon: 'file', c: '#067647', bg: '#ecfdf3', href: '#/t/repot' },
-      { label: 'سجل الدخول', val: log, icon: 'clock', c: '#475467', bg: '#f2f4f7', href: '#/t/LOGIN' }
-    ];
-
-    let statsHtml = '';
-    stats.forEach(function (s) {
-      statsHtml += '<a class="stat" href="' + s.href + '" style="--c:' + s.c + ';--cb:' + s.bg + '">' +
-        '<div class="stat-ico">' + ic(s.icon) + '</div><div><b>' + s.val + '</b><span>' + esc(s.label) + '</span></div></a>';
-    });
-
-    // توزيع الموظفين على المدارس
-    const by = {};
-    model('empolye').rows.forEach(function (r) {
-      const s = cellText('empolye', r.cells, 'school') || 'غير محدد';
-      by[s] = (by[s] || 0) + 1;
-    });
-    const top = Object.keys(by).map(function (k) { return { k: k, v: by[k] }; })
-      .sort(function (a, b) { return b.v - a.v; }).slice(0, 8);
-    const max = top.length ? top[0].v : 1;
-    let bars = '';
-    top.forEach(function (x) {
-      bars += '<div class="bar-row"><span class="name" title="' + esc(x.k) + '">' + esc(x.k) + '</span>' +
-        '<span class="bar-track"><span class="bar-fill" style="width:' + Math.round(x.v / max * 100) + '%"></span></span>' +
-        '<span class="val">' + x.v + '</span></div>';
-    });
-    if (!bars) bars = '<div class="tbl-empty">لا توجد بيانات</div>';
-
-    // أحدث سجلات الكادر
-    const recent = model('NESAB').rows.map(function (r) {
-      return { r: r, d: parseDate(cellText('NESAB', r.cells, 'd_chang')) };
-    }).sort(function (a, b) { return (b.d || 0) - (a.d || 0); }).slice(0, 6);
-
-    let recentHtml = '';
-    if (!recent.length) {
-      recentHtml = '<div class="tbl-empty">لا توجد سجلات</div>';
-    } else {
-      recentHtml = '<div class="table-scroll" style="max-height:none"><table class="data"><thead><tr>' +
-        '<th>الاسم</th><th>المدرسة</th><th>المادة</th><th>التاريخ</th></tr></thead><tbody>';
-      recent.forEach(function (x) {
-        recentHtml += '<tr><td>' + esc(cellText('NESAB', x.r.cells, 'NAME')) + '</td>' +
-          '<td>' + esc(cellText('NESAB', x.r.cells, 'school')) + '</td>' +
-          '<td>' + esc(cellText('NESAB', x.r.cells, 'D_work')) + '</td>' +
-          '<td class="num">' + esc(cellText('NESAB', x.r.cells, 'd_chang')) + '</td></tr>';
-      });
-      recentHtml += '</tbody></table></div>';
-    }
-
-    $('#view').innerHTML =
-      '<div class="section-title"><h2>أهلاً، ' + esc(S.user) + '</h2><div class="desc">' + esc(dateAr()) + '</div></div>' +
-      '<div class="grid stats" style="margin-bottom:16px">' + statsHtml + '</div>' +
-      '<div class="two-col">' +
-        '<div class="card"><div class="card-head"><h3>توزيع الموظفين على المدارس</h3><div class="spacer"></div>' +
-          '<a class="btn btn-sm btn-outline" href="#/t/empolye">كل الموظفين</a></div>' +
-          '<div class="card-body"><div class="bars">' + bars + '</div></div></div>' +
-        '<div class="card"><div class="card-head"><h3>إجراءات سريعة</h3></div><div class="card-body"><div class="quick">' +
-          '<a href="#/t/empolye" data-quick-add="empolye">' + ic('plus') + 'إضافة موظف</a>' +
-          '<a href="#/t/Descunt">' + ic('calendar') + 'خصم الغياب</a>' +
-          '<a href="#/report/tamam">' + ic('print') + 'كشف التمام</a>' +
-          '<a href="#/schools">' + ic('school') + 'المدارس</a>' +
-          '<a href="#/report/kafaa">' + ic('file') + 'تقرير كفاءة</a>' +
-          '<a href="#/t/NESAB">' + ic('book') + 'الأنصبة</a>' +
-        '</div></div></div>' +
-      '</div>' +
-      '<div class="card" style="margin-top:16px"><div class="card-head"><h3>أحدث سجلات الكادر التعليمي</h3>' +
-        '<div class="spacer"></div><a class="btn btn-sm btn-outline" href="#/t/NESAB">عرض الكل</a></div>' + recentHtml + '</div>';
-
-    $('#status-records').textContent = 'السجلات: ' + emp + ' موظف · ' + sch + ' مدرسة';
-    S.printFn = function () { printTableGeneric('empolye', 'بيانات الموظفين'); };
-  }
-
   function parseDate(v) {
     if (!v) return 0;
     const s = String(v).trim();
@@ -1113,7 +1040,8 @@
   }
 
   function paperHead(title, sub) {
-    return '<div class="p-head"><div class="ministry">وزارة التربية والتعليم</div>' +
+    return '<div class="p-head"><img class="p-logo" src="assets/logo.jpg" alt="">' +
+      '<div class="ministry">وزارة التربية والتعليم</div>' +
       '<div class="dept">مراقبة التربية والتعليم — سلوق</div>' +
       '<h2>' + esc(title) + '</h2>' + (sub ? '<div class="dept">' + esc(sub) + '</div>' : '') + '</div>';
   }
@@ -1324,26 +1252,37 @@
     return null;
   }
 
-  function kafaaPaper(seq) {
+  function repFor(seq, year) {
+    const t = 'repot', m = model(t);
+    let hit = null;
+    m.rows.forEach(function (r) {
+      if (cellText(t, r.cells, 'SEQ') !== String(seq)) return;
+      const y = yearOf(cellText(t, r.cells, 'as_td')) || yearOf(cellText(t, r.cells, 'd_td'));
+      if (y === String(year)) hit = r.cells;
+    });
+    return hit;
+  }
+
+  function kafaaPaper(seq, year) {
     const emp = findRow('empolye', 'SEQ', seq) || [];
-    const rep = findRow('repot', 'SEQ', seq) || [];
+    const rep = year ? (repFor(seq, year) || []) : (findRow('repot', 'SEQ', seq) || []);
     const g = function (t, cells, c) { return cells.length ? cellText(t, cells, c) : ''; };
     const name = g('empolye', emp, '__name') || g('repot', rep, 'NAME');
     const grades = [
-      ['أداء الواجب', g('repot', rep, 'rep1'), '40'],
-      ['كمية العمل', g('repot', rep, 'rep2'), '20'],
-      ['جودة العمل', g('repot', rep, 'rep3'), '10'],
-      ['الحرص على استخدام أجهزة وأدوات العمل', g('repot', rep, 'rep4'), '10'],
-      ['المجموع', g('repot', rep, 'rep5'), '80'],
+      ['أداء الواجبات', g('repot', rep, 'rep1'), String(KMAX[0])],
+      ['كمية العمل', g('repot', rep, 'rep2'), String(KMAX[1])],
+      ['جودة العمل', g('repot', rep, 'rep3'), String(KMAX[2])],
+      ['الحرص على استخدام أجهزة وأدوات العمل والسلوك', g('repot', rep, 'rep4'), String(KMAX[3])],
+      ['المجموع', g('repot', rep, 'rep5'), String(KMAX[0] + KMAX[1] + KMAX[2] + KMAX[3])],
       ['التقدير العام', g('repot', rep, 'rep6'), '—'],
-      ['درجة الكفاءة المعدلة', g('repot', rep, 'rep7'), '—']
+      ['رمز التقدير', g('repot', rep, 'rep7'), '—']
     ];
     let rows = '';
     grades.forEach(function (x) {
       rows += '<tr><td>' + esc(x[0]) + '</td><td style="text-align:center;width:110px">' + esc(x[1] || '') + '</td>' +
         '<td style="text-align:center;width:110px">' + esc(x[2]) + '</td></tr>';
     });
-    return '<div class="paper">' + paperHead('تقرير كفاءة الموظف', 'للمدة من ' + (g('repot', rep, 'd_td') || '..........') + ' إلى ' + (g('repot', rep, 'as_td') || '..........')) +
+    return '<div class="paper">' + paperHead('تقرير كفاءة الموظف', 'للمدة من ' + (g('repot', rep, 'd_td') || (year ? '01/01/' + year : '..........')) + ' إلى ' + (g('repot', rep, 'as_td') || (year ? '31/12/' + year : '..........'))) +
       '<div class="p-meta"><span>الرقم الوطني: ' + esc(g('empolye', emp, 'record')) + '</span><span>الرقم الإشاري: ' + esc(g('empolye', emp, 'SEQ')) + '</span></div>' +
       '<div class="p-sec">القسم الأول / معلومات عامة</div>' +
       '<div class="p-fields">' +
@@ -1373,28 +1312,19 @@
   }
 
   function tamamPaper(school, month, year, src) {
-    const t = src;
-    const rows = model(t).rows.filter(function (r) {
-      const s = cellText(t, r.cells, 'school');
-      const m = cellText(t, r.cells, 'MUN_EDIT');
-      const y = cellText(t, r.cells, 'YEAR_EDIT');
-      return (!school || s === school) && (!month || m === month) && (!year || y === year);
+    const t = src, mi = monthIdx(month), y = +year || new Date().getFullYear();
+    const n = mi >= 0 ? daysIn(mi, y) : 30;
+    const items = [];
+    model(t).rows.forEach(function (r) {
+      if (school && norm(cellText(t, r.cells, 'school')) !== norm(school)) return;
+      if (monthIdx(cellText(t, r.cells, 'MUN_EDIT')) !== mi) return;
+      if (year && cellText(t, r.cells, 'YEAR_EDIT') !== String(year)) return;
+      const d = new Array(32).fill('');
+      for (let k = 1; k <= 31; k++) d[k] = daySym(cellText(t, r.cells, 'd' + k));
+      const nt = cellText(t, r.cells, 'Nota_work');
+      items.push({ name: fullName(t, r.cells), d: d, note: nt === 'خصم غياب' ? '' : nt });
     });
-    let html = '<div class="paper">' + paperHead('كشف التمام الشهري', 'عن شهر ' + (month || '..........') + ' لسنة ' + (year || '..........') + ' — مدرسة ' + (school || '..........')) +
-      '<table><thead><tr><th style="width:38px">م</th><th>الاسم رباعي</th><th style="width:80px">حضور</th><th style="width:80px">غياب</th><th style="width:150px">ملاحظة</th></tr></thead><tbody>';
-    if (!rows.length) {
-      html += '<tr><td colspan="5" style="text-align:center;padding:20px">لا توجد بيانات مطابقة</td></tr>';
-    }
-    rows.forEach(function (r, i) {
-      html += '<tr><td>' + (i + 1) + '</td><td>' + esc(fullName(t, r.cells)) + '</td>' +
-        '<td style="text-align:center">' + esc(cellText(t, r.cells, 'tot_h')) + '</td>' +
-        '<td style="text-align:center">' + esc(cellText(t, r.cells, 'tot_d')) + '</td>' +
-        '<td>' + esc(cellText(t, r.cells, 'Nota_work')) + '</td></tr>';
-    });
-    html += '</tbody></table>' +
-      '<div class="p-note">* عدد أيام الشهر: ' + (rows.length ? esc(cellText(t, rows[0].cells, 'beet')) : '..........') + '</div>' +
-      '<div class="p-sign"><div>مدير المدرسة<br><br>يعتمد</div><div>الأمين الإداري<br><br></div><div>مراقبة التعليم<br><br></div></div></div>';
-    return html;
+    return horizontalPaper({ school: school, month: month, year: y, n: n, mi: Math.max(mi, 0), wk: lsGet('madrasa.wk', 'fs'), items: items });
   }
 
   function ijazatPaper(school) {
@@ -1502,17 +1432,27 @@
     }
 
     if (id === 'tamam') {
-      const schools = distinct('TAMAM_ARC', 'school');
-      const months = distinct('TAMAM_ARC', 'MUN_EDIT');
-      const years = distinct('TAMAM_ARC', 'YEAR_EDIT');
+      const schools = schoolList();
+      const t = 'TAMAM_ARC';
+      let best = -1, bm = new Date().getMonth(), by = new Date().getFullYear();
+      const ys = {};
+      ys[by] = 1;
+      model(t).rows.forEach(function (r) {
+        const mi = monthIdx(cellText(t, r.cells, 'MUN_EDIT')), y = parseInt(cellText(t, r.cells, 'YEAR_EDIT'), 10);
+        if (mi < 0 || !y) return;
+        ys[y] = 1;
+        if (y * 12 + mi > best) { best = y * 12 + mi; bm = mi; by = y; }
+      });
+      const years = Object.keys(ys).sort(function (a, b) { return b - a; });
       setTitle(meta.title, meta.desc);
       reportShell(
-        '<div class="field"><label>المدرسة</label><select class="select" id="rep-school"><option value="">كل المدارس</option>' +
+        '<div class="field"><label>المدرسة</label><select class="select" id="rep-school">' +
         schools.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('') + '</select></div>' +
         '<div class="field"><label>الشهر</label><select class="select" id="rep-month">' +
-        months.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('') + '</select></div>' +
+        MONTHS.map(function (s, i) { return opt(s, s, MONTHS[bm]); }).join('') + '</select></div>' +
         '<div class="field"><label>السنة</label><select class="select" id="rep-year">' +
-        years.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('') + '</select></div>',
+        years.map(function (s) { return opt(s, s, by); }).join('') + '</select></div>' +
+        '<div class="hint">الكشف أفقي بأيام الشهر. لتسجيل الحضور والغياب افتح «كشف التمام الأفقي» من القائمة.</div>',
         meta.title);
       const upd = function () {
         setPreview(tamamPaper($('#rep-school').value, $('#rep-month').value, $('#rep-year').value, 'TAMAM_ARC'));
@@ -1608,6 +1548,7 @@
   }
 
   function onViewClick(e) {
+    if (onViewExtClick(e)) return;
     const qa = e.target.closest('[data-quick-add]');
     if (qa) {
       e.preventDefault();
@@ -1766,6 +1707,14 @@
     });
 
     document.getElementById('view').addEventListener('click', onViewClick);
+    document.getElementById('view').addEventListener('input', onKafaaInput);
+    document.getElementById('view').addEventListener('keydown', function (e) { onTamamKey(e); onKafaaKey(e); });
+    document.getElementById('view').addEventListener('input', function (e) {
+      const n = e.target.closest && e.target.closest('input.note-in');
+      if (n && TS.data[n.getAttribute('data-note')]) { TS.data[n.getAttribute('data-note')].note = n.value; markTamamDirty(); }
+    });
+    window.addEventListener('beforeunload', function () { if (TS.dirty) saveTamam(true); if (KS.dirty) saveKafaa(true); });
+    window.addEventListener('hashchange', function () { if (TS.dirty) saveTamam(true); if (KS.dirty) saveKafaa(true); }, true);
     window.addEventListener('hashchange', route);
 
     let saved = null;
@@ -1778,8 +1727,791 @@
     if (saved) enterApp(saved, true);
   }
 
+  /* ============================================================
+     الإصدار 2.0 — كشف التمام الأفقي · إدخال تقارير الكفاءة · لوحة المعلومات
+     ============================================================ */
+
+  const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const WD_SHORT = ['أحد', 'إثن', 'ثلا', 'أرب', 'خمس', 'جمعة', 'سبت'];
+  const WEEKENDS = {
+    fs: { label: 'الجمعة والسبت', days: [5, 6] },
+    f: { label: 'الجمعة فقط', days: [5] },
+    none: { label: 'بلا عطلة أسبوعية', days: [] }
+  };
+  const SYMS = {
+    '1': { t: '✓', n: 'حاضر', c: 'p' },
+    'غ': { t: 'غ', n: 'غائب', c: 'a' },
+    'ج': { t: 'ج', n: 'إجازة', c: 'l' },
+    'م': { t: 'م', n: 'مرضية', c: 's' },
+    'ر': { t: 'ر', n: 'عطلة رسمية', c: 'h' }
+  };
+  const CYCLE = ['', '1', 'غ', 'ج', 'م', 'ر'];
+  const KEYMAP = { '1': '1', ' ': '1', 'غ': 'غ', '2': 'غ', 'ج': 'ج', '3': 'ج', 'م': 'م', '4': 'م', 'ر': 'ر', '5': 'ر', '0': '', 'Delete': '', 'Backspace': '' };
+
+  function monthIdx(name) {
+    const n = norm(name);
+    if (!n) return -1;
+    for (let i = 0; i < 12; i++) if (norm(MONTHS[i]) === n) return i;
+    return -1;
+  }
+  function daysIn(mi, y) { return new Date(+y, mi + 1, 0).getDate(); }
+  function daySym(v) {
+    if (v == null) return '';
+    v = String(v).trim();
+    return SYMS[v] ? v : '';
+  }
+  function lsGet(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* */ } }
+  function opt(v, label, sel) { return '<option value="' + esc(v) + '"' + (String(sel) === String(v) ? ' selected' : '') + '>' + esc(label) + '</option>'; }
+
+  function schoolList() {
+    const o = {};
+    model('empolye').rows.forEach(function (r) {
+      const s = cellText('empolye', r.cells, 'school');
+      if (s) o[s] = (o[s] || 0) + 1;
+    });
+    let keys = Object.keys(o);
+    if (!keys.length && MAN['SCHOOLS']) {
+      model('SCHOOLS').rows.forEach(function (r) { const s = cellText('SCHOOLS', r.cells, 'sch'); if (s) keys.push(s); });
+    }
+    return keys.sort(function (a, b) { return a.localeCompare(b, 'ar'); });
+  }
+
+  function employeesOf(school) {
+    const out = [];
+    model('empolye').rows.forEach(function (r) {
+      const seq = cellText('empolye', r.cells, 'SEQ');
+      if (!seq) return;
+      if (norm(cellText('empolye', r.cells, 'school')) !== norm(school)) return;
+      out.push({
+        seq: seq, name: fullName('empolye', r.cells), pos: cellText('empolye', r.cells, 'postion'),
+        num: parseFloat(cellText('empolye', r.cells, 'NUM')) || 0, cells: r.cells
+      });
+    });
+    out.sort(function (a, b) { return (a.num - b.num) || a.name.localeCompare(b.name, 'ar'); });
+    return out;
+  }
+
+  function headerBar(title, sub, actions) {
+    return '<div class="page-hero"><div class="ph-text"><h2>' + esc(title) + '</h2><p>' + esc(sub) + '</p></div>' +
+      '<div class="ph-actions">' + (actions || '') + '</div></div>';
+  }
+
+  /* ===================== كشف التمام الأفقي ===================== */
+  const TS = { school: '', mi: new Date().getMonth(), y: new Date().getFullYear(), wk: lsGet('madrasa.wk', 'fs'), q: '', list: [], data: {}, dirty: false, timer: null };
+
+  function loadTamam() {
+    const t = 'TAMAM_ARC';
+    TS.list = employeesOf(TS.school);
+    TS.data = {};
+    const found = {};
+    model(t).rows.forEach(function (r) {
+      if (norm(cellText(t, r.cells, 'school')) !== norm(TS.school)) return;
+      if (monthIdx(cellText(t, r.cells, 'MUN_EDIT')) !== TS.mi) return;
+      if (cellText(t, r.cells, 'YEAR_EDIT') !== String(TS.y)) return;
+      found[cellText(t, r.cells, 'SEQ')] = r.cells;
+    });
+    const cols = model(t).cols;
+    TS.list.forEach(function (e) {
+      const d = new Array(32).fill('');
+      let note = '';
+      const cells = found[e.seq];
+      if (cells) {
+        for (let k = 1; k <= 31; k++) { const i = cols.indexOf('d' + k); d[k] = daySym(cells[i]); }
+        const ni = cols.indexOf('Nota_work');
+        note = ni >= 0 && cells[ni] && cells[ni] !== 'خصم غياب' ? String(cells[ni]) : '';
+      }
+      TS.data[e.seq] = { d: d, note: note };
+    });
+    TS.dirty = false;
+  }
+
+  function tmWeekend(day) {
+    const wd = new Date(TS.y, TS.mi, day).getDay();
+    return WEEKENDS[TS.wk].days.indexOf(wd) >= 0;
+  }
+
+  function rowTotals(rec, n) {
+    const t = { p: 0, a: 0, l: 0, h: 0 };
+    for (let k = 1; k <= n; k++) {
+      const v = rec.d[k];
+      if (v === '1') t.p++; else if (v === 'غ') t.a++; else if (v === 'ج' || v === 'م') t.l++; else if (v === 'ر') t.h++;
+    }
+    return t;
+  }
+
+  function tamamStats() {
+    const n = daysIn(TS.mi, TS.y);
+    let p = 0, a = 0, l = 0, work = 0;
+    for (let k = 1; k <= n; k++) if (!tmWeekend(k)) work++;
+    TS.list.forEach(function (e) { const t = rowTotals(TS.data[e.seq], n); p += t.p; a += t.a; l += t.l; });
+    const marked = p + a;
+    return { n: n, work: work, p: p, a: a, l: l, rate: marked ? Math.round(p / marked * 1000) / 10 : null, emps: TS.list.length };
+  }
+
+  function symCell(v, we, k, seq) {
+    const s = SYMS[v];
+    return '<td class="dc' + (we ? ' we' : '') + (s ? ' ' + s.c : '') + '" data-d="' + k + '" data-seq="' + esc(seq) + '" tabindex="0">' + (s ? s.t : '') + '</td>';
+  }
+
+  function paintTamamStats() {
+    const s = tamamStats();
+    const set = function (id, v) { const el = $(id); if (el) el.textContent = v; };
+    set('#ts-emps', s.emps); set('#ts-work', s.work); set('#ts-abs', s.a); set('#ts-leave', s.l);
+    set('#ts-rate', s.rate == null ? '—' : s.rate + '٪');
+    const bar = $('#ts-ratebar'); if (bar) bar.style.width = (s.rate || 0) + '%';
+  }
+
+  function paintRowTotals(seq) {
+    const rec = TS.data[seq], n = daysIn(TS.mi, TS.y), t = rowTotals(rec, n);
+    const tr = $('tr[data-row="' + CSS.escape(seq) + '"]');
+    if (!tr) return;
+    tr.querySelector('.t-p').textContent = t.p || '';
+    tr.querySelector('.t-a').textContent = t.a || '';
+    tr.querySelector('.t-l').textContent = t.l || '';
+    tr.classList.toggle('has-abs', t.a > 0);
+  }
+
+  function buildTamamGrid() {
+    const n = daysIn(TS.mi, TS.y);
+    const q = norm(TS.q);
+    let h1 = '<tr><th class="c-num" rowspan="2">م</th><th class="c-name" rowspan="2">الاسم</th>';
+    let h2 = '<tr>';
+    const today = new Date();
+    for (let k = 1; k <= n; k++) {
+      const wd = new Date(TS.y, TS.mi, k).getDay();
+      const we = tmWeekend(k);
+      const isToday = today.getFullYear() === TS.y && today.getMonth() === TS.mi && today.getDate() === k;
+      h1 += '<th class="dh' + (we ? ' we' : '') + (isToday ? ' today' : '') + '" data-dayfill="' + k + '" title="انقر لتعبئة اليوم ' + k + ' للجميع">' + k + '</th>';
+      h2 += '<th class="dw' + (we ? ' we' : '') + (isToday ? ' today' : '') + '">' + WD_SHORT[wd] + '</th>';
+    }
+    h1 += '<th class="c-tot" rowspan="2">حاضر</th><th class="c-tot" rowspan="2">غائب</th><th class="c-tot" rowspan="2">إجازة</th>' +
+      '<th class="c-note" rowspan="2">ملاحظات</th><th class="c-act" rowspan="2"></th></tr>';
+    h2 += '</tr>';
+    let body = '', shown = 0;
+    TS.list.forEach(function (e, i) {
+      if (q && norm(e.name).indexOf(q) < 0 && String(e.seq).indexOf(q) < 0) return;
+      shown++;
+      const rec = TS.data[e.seq], t = rowTotals(rec, n);
+      body += '<tr data-row="' + esc(e.seq) + '"' + (t.a ? ' class="has-abs"' : '') + '><td class="c-num">' + (i + 1) + '</td>' +
+        '<td class="c-name"><b>' + esc(e.name) + '</b><small>' + esc(e.pos) + '</small></td>';
+      for (let k = 1; k <= n; k++) body += symCell(rec.d[k], tmWeekend(k), k, e.seq);
+      body += '<td class="c-tot t-p">' + (t.p || '') + '</td><td class="c-tot t-a">' + (t.a || '') + '</td><td class="c-tot t-l">' + (t.l || '') + '</td>' +
+        '<td class="c-note"><input class="note-in" data-note="' + esc(e.seq) + '" value="' + esc(rec.note) + '" placeholder="—"></td>' +
+        '<td class="c-act"><button class="mini" data-rowfill="' + esc(e.seq) + '" title="تعبئة أيام العمل حاضر">✓</button>' +
+        '<button class="mini x" data-rowclear="' + esc(e.seq) + '" title="مسح الصف">✕</button></td></tr>';
+    });
+    if (!shown) body = '<tr><td colspan="' + (n + 7) + '" class="tbl-empty">' + (TS.list.length ? 'لا توجد نتائج مطابقة للبحث' : 'لا يوجد موظفون مسجّلون في هذه المدرسة') + '</td></tr>';
+    return '<table class="tm-grid"><thead>' + h1 + h2 + '</thead><tbody>' + body + '</tbody></table>';
+  }
+
+  function repaintGrid() {
+    const host = $('#tm-host');
+    if (host) host.innerHTML = buildTamamGrid();
+    paintTamamStats();
+    paintSaveState();
+  }
+
+  function paintSaveState() {
+    const el = $('#tm-state');
+    if (!el) return;
+    el.className = 'save-state ' + (TS.dirty ? 'dirty' : 'ok');
+    el.textContent = TS.dirty ? 'جارٍ الحفظ…' : 'محفوظ';
+  }
+
+  function markTamamDirty() {
+    TS.dirty = true;
+    paintSaveState();
+    clearTimeout(TS.timer);
+    TS.timer = setTimeout(function () { saveTamam(true); }, 1200);
+  }
+
+  function buildTamamRow(e, rec, n, srcCells) {
+    const t = 'TAMAM_ARC', cols = model(t).cols;
+    const cells = srcCells ? srcCells.slice() : new Array(cols.length).fill(null);
+    const set = function (k, v) { const i = cols.indexOf(k); if (i >= 0) cells[i] = v; };
+    const emp = e.cells, ec = model('empolye').cols;
+    const eg = function (k) { const i = ec.indexOf(k); return i >= 0 ? emp[i] : null; };
+    if (!srcCells) {
+      ['SEQ', 'NAME1', 'NAME2', 'NAME3', 'NAME4', 'record', 'bank', 'subbank', 'no_acc', 'postion', 'school'].forEach(function (k) { set(k, eg(k)); });
+      set('C1', false); set('a_c', false);
+      let mx = 0;
+      model(t).rows.forEach(function (r) { const v = parseFloat(cellText(t, r.cells, 'NUM')); if (v > mx) mx = v; });
+      set('NUM', mx + 1);
+    }
+    for (let k = 1; k <= 31; k++) set('d' + k, k <= n ? (rec.d[k] || '0') : '0');
+    const tt = rowTotals(rec, n);
+    set('tot_h', String(n - tt.a)); set('tot_d', String(tt.a)); set('beet', String(n));
+    set('MUN_EDIT', MONTHS[TS.mi]); set('YEAR_EDIT', String(TS.y));
+    set('Nota_work', rec.note || null);
+    return cells;
+  }
+
+  function saveTamam(silent) {
+    clearTimeout(TS.timer);
+    const t = 'TAMAM_ARC', m = model(t), n = daysIn(TS.mi, TS.y);
+    const index = {};
+    m.rows.forEach(function (r) {
+      if (norm(cellText(t, r.cells, 'school')) !== norm(TS.school)) return;
+      if (monthIdx(cellText(t, r.cells, 'MUN_EDIT')) !== TS.mi) return;
+      if (cellText(t, r.cells, 'YEAR_EDIT') !== String(TS.y)) return;
+      index[cellText(t, r.cells, 'SEQ')] = r;
+    });
+    let saved = 0;
+    TS.list.forEach(function (e) {
+      const rec = TS.data[e.seq];
+      const any = rec.note || rec.d.some(function (v, i) { return i > 0 && i <= n && v; });
+      const row = index[e.seq];
+      if (!any && !row) return;
+      if (row) row.cells = buildTamamRow(e, rec, n, row.cells);
+      else m.rows.push({ cells: buildTamamRow(e, rec, n, null), orig: -1 });
+      saved++;
+    });
+    commit(t);
+    TS.dirty = false;
+    paintSaveState();
+    if (!silent) toast('تم حفظ كشف التمام (' + saved + ' موظف)');
+  }
+
+  function transferAbsence() {
+    saveTamam(true);
+    const t = 'Descunt', n = daysIn(TS.mi, TS.y);
+    const cands = TS.list.filter(function (e) { return rowTotals(TS.data[e.seq], n).a > 0; });
+    if (!cands.length) { toast('لا توجد غيابات لترحيلها هذا الشهر', 'warn'); return; }
+    confirmBox('ترحيل الغياب إلى خصم الغياب', 'سيتم إنشاء/تحديث سجل خصم لـ ' + cands.length + ' موظف عن شهر ' + MONTHS[TS.mi] + ' ' + TS.y + '. هل تريد المتابعة؟', 'ترحيل', false).then(function (ok) {
+      if (!ok) return;
+      const m = model(t), cols = m.cols;
+      cands.forEach(function (e) {
+        const rec = TS.data[e.seq], tt = rowTotals(rec, n);
+        let row = null;
+        m.rows.forEach(function (r) {
+          if (cellText(t, r.cells, 'SEQ') === e.seq && monthIdx(cellText(t, r.cells, 'MUN_EDIT')) === TS.mi && cellText(t, r.cells, 'YEAR_EDIT') === String(TS.y)) row = r;
+        });
+        const cells = row ? row.cells : new Array(cols.length).fill(null);
+        const set = function (k, v) { const i = cols.indexOf(k); if (i >= 0) cells[i] = v; };
+        if (!row) {
+          const ec = model('empolye').cols;
+          ['SEQ', 'NAME1', 'NAME2', 'NAME3', 'NAME4', 'record', 'bank', 'subbank', 'no_acc', 'postion', 'school'].forEach(function (k) {
+            const i = ec.indexOf(k); set(k, i >= 0 ? e.cells[i] : null);
+          });
+          let mx = 0;
+          m.rows.forEach(function (r) { const v = parseFloat(cellText(t, r.cells, 'NUM')); if (v > mx) mx = v; });
+          set('NUM', mx + 1); set('C1', false); set('a_c', false);
+        }
+        for (let k = 1; k <= 31; k++) set('d' + k, k <= n ? (rec.d[k] === 'غ' ? 'غ' : '1') : '');
+        set('tot_h', String(n - tt.a)); set('tot_d', String(tt.a)); set('beet', String(n));
+        set('MUN_EDIT', MONTHS[TS.mi]); set('YEAR_EDIT', String(TS.y)); set('Nota_work', 'خصم غياب');
+        if (!row) m.rows.push({ cells: cells, orig: -1 });
+      });
+      commit(t);
+      buildNav();
+      toast('تم ترحيل ' + cands.length + ' سجل إلى خصم الغياب');
+    });
+  }
+
+  function legendHtml() {
+    let h = '<div class="tm-legend">';
+    Object.keys(SYMS).forEach(function (k) { h += '<span class="lg"><i class="dc ' + SYMS[k].c + '">' + SYMS[k].t + '</i>' + SYMS[k].n + '</span>'; });
+    h += '<span class="lg"><i class="dc we">·</i>عطلة أسبوعية</span><span class="lg tip">انقر الخلية للتبديل · أو اكتب 1 / غ / ج / م / ر · الأسهم للتنقل</span></div>';
+    return h;
+  }
+
+  function renderTamamSheet() {
+    if (TS.dirty && TS.list.length) saveTamam(true);
+    setTitle('كشف التمام الأفقي', 'تسجيل الحضور والغياب بأيام الشهر');
+    S.vs = null;
+    const schools = schoolList();
+    if (!TS.school || schools.indexOf(TS.school) < 0) TS.school = schools[0] || '';
+    loadTamam();
+    const yrs = []; for (let y = new Date().getFullYear() + 1; y >= 2018; y--) yrs.push(y);
+    $('#view').innerHTML =
+      headerBar('كشف التمام الأفقي', 'اختر المدرسة والشهر ثم سجّل الحضور والغياب مباشرة — يُحفظ تلقائياً',
+        '<span id="tm-state" class="save-state ok">محفوظ</span>' +
+        '<button class="btn btn-soft" data-tm="fill">' + ic('check') + 'تعبئة الكل حاضر</button>' +
+        '<button class="btn btn-soft" data-tm="transfer">' + ic('arrow') + 'ترحيل للخصم</button>' +
+        '<button class="btn btn-outline" data-tm="csv">' + ic('download') + 'CSV</button>' +
+        '<button class="btn btn-primary" data-tm="print">' + ic('print') + 'طباعة الكشف</button>') +
+      '<div class="card tm-controls"><div class="ctl"><label>المدرسة</label><select class="select" id="tm-school">' + schools.map(function (s) { return opt(s, s, TS.school); }).join('') + '</select></div>' +
+      '<div class="ctl"><label>الشهر</label><select class="select" id="tm-month">' + MONTHS.map(function (s, i) { return opt(i, s, TS.mi); }).join('') + '</select></div>' +
+      '<div class="ctl sm"><label>السنة</label><select class="select" id="tm-year">' + yrs.map(function (y) { return opt(y, y, TS.y); }).join('') + '</select></div>' +
+      '<div class="ctl"><label>العطلة الأسبوعية</label><select class="select" id="tm-wk">' + Object.keys(WEEKENDS).map(function (k) { return opt(k, WEEKENDS[k].label, TS.wk); }).join('') + '</select></div>' +
+      '<div class="ctl grow"><label>بحث</label><div class="search-box" style="max-width:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tm-q" placeholder="ابحث بالاسم أو رقم المنظومة…" value="' + esc(TS.q) + '"></div></div></div>' +
+      '<div class="tm-stats">' +
+      '<div class="kpi"><span>الموظفون</span><b id="ts-emps">0</b></div>' +
+      '<div class="kpi"><span>أيام العمل</span><b id="ts-work">0</b></div>' +
+      '<div class="kpi red"><span>إجمالي الغياب</span><b id="ts-abs">0</b></div>' +
+      '<div class="kpi amber"><span>إجازات</span><b id="ts-leave">0</b></div>' +
+      '<div class="kpi green"><span>نسبة الحضور</span><b id="ts-rate">—</b><i class="rbar"><u id="ts-ratebar"></u></i></div></div>' +
+      legendHtml() +
+      '<div class="tm-wrap" id="tm-host"></div>';
+    repaintGrid();
+
+    $('#tm-school').addEventListener('change', function () { saveTamam(true); TS.school = this.value; loadTamam(); repaintGrid(); });
+    $('#tm-month').addEventListener('change', function () { saveTamam(true); TS.mi = +this.value; loadTamam(); repaintGrid(); });
+    $('#tm-year').addEventListener('change', function () { saveTamam(true); TS.y = +this.value; loadTamam(); repaintGrid(); });
+    $('#tm-wk').addEventListener('change', function () { TS.wk = this.value; lsSet('madrasa.wk', TS.wk); repaintGrid(); });
+    $('#tm-q').addEventListener('input', debounce(function (e) { TS.q = e.target.value; repaintGrid(); }, 160));
+
+    S.printFn = function () { printHTML(horizontalPaper(tamamPaperData())); };
+  }
+
+  function setDay(seq, k, v) {
+    const rec = TS.data[seq];
+    if (!rec) return;
+    rec.d[k] = v;
+    const td = $('td.dc[data-seq="' + CSS.escape(seq) + '"][data-d="' + k + '"]');
+    if (td) {
+      const s = SYMS[v];
+      td.className = 'dc' + (tmWeekend(k) ? ' we' : '') + (s ? ' ' + s.c : '');
+      td.textContent = s ? s.t : '';
+    }
+    paintRowTotals(seq);
+  }
+
+  function tamamPaperData() {
+    const n = daysIn(TS.mi, TS.y);
+    return {
+      school: TS.school, month: MONTHS[TS.mi], year: TS.y, n: n, mi: TS.mi, wk: TS.wk,
+      items: TS.list.map(function (e) { return { name: e.name, pos: e.pos, d: TS.data[e.seq].d, note: TS.data[e.seq].note }; })
+    };
+  }
+
+  function horizontalPaper(P) {
+    const n = P.n, wkDays = WEEKENDS[P.wk || 'fs'].days;
+    let h1 = '<tr><th rowspan="2" class="hn">م</th><th rowspan="2" class="hname">الاسم</th>', h2 = '<tr>';
+    for (let k = 1; k <= n; k++) {
+      const wd = new Date(P.year, P.mi, k).getDay(), we = wkDays.indexOf(wd) >= 0;
+      h1 += '<th class="hd' + (we ? ' we' : '') + '">' + k + '</th>';
+      h2 += '<th class="hw' + (we ? ' we' : '') + '">' + WD_SHORT[wd] + '</th>';
+    }
+    h1 += '<th rowspan="2" class="ht">حاضر</th><th rowspan="2" class="ht">غائب</th><th rowspan="2" class="ht">إجازة</th><th rowspan="2" class="hnote">ملاحظات</th></tr>';
+    h2 += '</tr>';
+    let body = '', tp = 0, ta = 0, tl = 0;
+    P.items.forEach(function (it, i) {
+      const t = rowTotals(it, n); tp += t.p; ta += t.a; tl += t.l;
+      body += '<tr><td>' + (i + 1) + '</td><td class="hname">' + esc(it.name) + '</td>';
+      for (let k = 1; k <= n; k++) {
+        const wd = new Date(P.year, P.mi, k).getDay(), we = wkDays.indexOf(wd) >= 0, v = it.d[k], s = SYMS[v];
+        body += '<td class="' + (we ? 'we ' : '') + (s ? s.c : '') + '">' + (s ? s.t : '') + '</td>';
+      }
+      body += '<td>' + (t.p || '') + '</td><td>' + (t.a || '') + '</td><td>' + (t.l || '') + '</td><td class="hnote">' + esc(it.note || '') + '</td></tr>';
+    });
+    if (!P.items.length) body = '<tr><td colspan="' + (n + 6) + '" style="text-align:center;padding:18px">لا توجد بيانات</td></tr>';
+    const leg = Object.keys(SYMS).map(function (k) { return SYMS[k].t + ' = ' + SYMS[k].n; }).join('   ·   ');
+    return '<div class="paper landscape">' + paperHead('كشف التمام الشهري', 'عن شهر ' + P.month + ' ' + P.year + ' — ' + (P.school ? 'مدرسة ' + P.school : 'جميع المدارس')) +
+      '<table class="h-table"><thead>' + h1 + h2 + '</thead><tbody>' + body + '</tbody>' +
+      '<tfoot><tr><td colspan="' + (n + 2) + '" style="text-align:left;font-weight:700">الإجمالي</td><td>' + tp + '</td><td>' + ta + '</td><td>' + tl + '</td><td></td></tr></tfoot></table>' +
+      '<div class="p-note">الرموز: ' + esc(leg) + '   ·   الأعمدة المظللة عطلة أسبوعية</div>' +
+      '<div class="p-sign"><div>مدير المدرسة<br><br>يعتمد</div><div>الأمين الإداري<br><br></div><div>مراقبة التعليم<br><br></div></div></div>';
+  }
+
+  function onTamamClick(e) {
+    const dc = e.target.closest('td.dc[data-seq]');
+    if (dc) {
+      const seq = dc.getAttribute('data-seq'), k = +dc.getAttribute('data-d');
+      const cur = TS.data[seq].d[k], i = CYCLE.indexOf(cur);
+      setDay(seq, k, CYCLE[(i + (e.shiftKey ? CYCLE.length - 1 : 1)) % CYCLE.length]);
+      paintTamamStats(); markTamamDirty();
+      return true;
+    }
+    const df = e.target.closest('[data-dayfill]');
+    if (df) {
+      const k = +df.getAttribute('data-dayfill');
+      const all = TS.list.every(function (x) { return TS.data[x.seq].d[k] === '1'; });
+      TS.list.forEach(function (x) { if (all) setDay(x.seq, k, ''); else if (!TS.data[x.seq].d[k]) setDay(x.seq, k, '1'); });
+      paintTamamStats(); markTamamDirty();
+      return true;
+    }
+    const rf = e.target.closest('[data-rowfill]');
+    if (rf) {
+      const seq = rf.getAttribute('data-rowfill'), n = daysIn(TS.mi, TS.y);
+      for (let k = 1; k <= n; k++) if (!tmWeekend(k) && !TS.data[seq].d[k]) setDay(seq, k, '1');
+      paintTamamStats(); markTamamDirty();
+      return true;
+    }
+    const rc = e.target.closest('[data-rowclear]');
+    if (rc) {
+      const seq = rc.getAttribute('data-rowclear'), n = daysIn(TS.mi, TS.y);
+      for (let k = 1; k <= n; k++) setDay(seq, k, '');
+      paintTamamStats(); markTamamDirty();
+      return true;
+    }
+    const tm = e.target.closest('[data-tm]');
+    if (!tm) return false;
+    const act = tm.getAttribute('data-tm');
+    if (act === 'print') { saveTamam(true); printHTML(horizontalPaper(tamamPaperData())); }
+    else if (act === 'fill') {
+      const n = daysIn(TS.mi, TS.y);
+      TS.list.forEach(function (x) { for (let k = 1; k <= n; k++) if (!tmWeekend(k) && !TS.data[x.seq].d[k]) TS.data[x.seq].d[k] = '1'; });
+      repaintGrid(); markTamamDirty();
+      toast('تمت تعبئة أيام العمل الفارغة بحالة «حاضر»');
+    } else if (act === 'transfer') transferAbsence();
+    else if (act === 'csv') {
+      const n = daysIn(TS.mi, TS.y);
+      let out = ['م', 'الاسم'].concat(Array.from({ length: n }, function (_, i) { return i + 1; }), ['حاضر', 'غائب', 'إجازة', 'ملاحظات']).map(csvCell).join(',') + '\r\n';
+      TS.list.forEach(function (x, i) {
+        const rec = TS.data[x.seq], t = rowTotals(rec, n);
+        out += [i + 1, x.name].concat(rec.d.slice(1, n + 1).map(function (v) { return v ? SYMS[v].n : ''; }), [t.p, t.a, t.l, rec.note]).map(csvCell).join(',') + '\r\n';
+      });
+      download('كشف_التمام_' + MONTHS[TS.mi] + '_' + TS.y + '.csv', out);
+      toast('تم تصدير الكشف');
+    }
+    return true;
+  }
+
+  function onTamamKey(e) {
+    const dc = e.target.closest && e.target.closest('td.dc[data-seq]');
+    if (!dc) return;
+    const seq = dc.getAttribute('data-seq'), k = +dc.getAttribute('data-d');
+    if (Object.prototype.hasOwnProperty.call(KEYMAP, e.key)) {
+      e.preventDefault();
+      setDay(seq, k, KEYMAP[e.key]); paintTamamStats(); markTamamDirty();
+      const nx = dc.nextElementSibling; if (nx && nx.classList.contains('dc')) nx.focus();
+      return;
+    }
+    const move = { ArrowLeft: [0, 1], ArrowRight: [0, -1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.key];
+    if (!move) return;
+    e.preventDefault();
+    let target = null;
+    if (move[0] === 0) target = move[1] > 0 ? dc.nextElementSibling : dc.previousElementSibling;
+    else {
+      const tr = move[0] > 0 ? dc.parentElement.nextElementSibling : dc.parentElement.previousElementSibling;
+      if (tr) target = tr.querySelector('td.dc[data-d="' + k + '"]');
+    }
+    if (target && target.classList.contains('dc')) target.focus();
+  }
+
+  /* ===================== إدخال تقارير الكفاءة ===================== */
+  const KMAX = [40, 20, 20, 20];
+  const KNAMES = ['أداء الواجبات', 'كمية العمل', 'جودة العمل', 'الحرص والسلوك'];
+  const GCODE = { 'ممتاز': '1', 'جيد جدا': '2', 'جيد': '3', 'مقبول': '4', 'ضعيف': '5' };
+  const GBADGE = { 'ممتاز': 'badge-green', 'جيد جدا': 'badge-blue', 'جيد': 'badge-amber', 'مقبول': 'badge-gray', 'ضعيف': 'badge-red' };
+  function gradeOf(total) {
+    if (total >= 85) return 'ممتاز';
+    if (total >= 75) return 'جيد جدا';
+    if (total >= 65) return 'جيد';
+    if (total >= 50) return 'مقبول';
+    return 'ضعيف';
+  }
+  function yearOf(s) { const m = String(s || '').match(/(\d{4})\s*$/); return m ? m[1] : ''; }
+
+  const KS = { school: '', year: new Date().getFullYear() - 1, q: '', list: [], v: {}, dirty: false, timer: null, from: '', to: '' };
+
+  function periodDefault() { KS.from = '01/01/' + KS.year; KS.to = '31/12/' + KS.year; }
+
+  function repIndexByYear() {
+    const t = 'repot', map = {};
+    model(t).rows.forEach(function (r) {
+      const y = yearOf(cellText(t, r.cells, 'as_td')) || yearOf(cellText(t, r.cells, 'd_td'));
+      map[cellText(t, r.cells, 'SEQ') + '|' + y] = r;
+    });
+    return map;
+  }
+
+  function loadKafaa() {
+    const t = 'repot';
+    KS.list = employeesOf(KS.school);
+    KS.v = {};
+    const idx = repIndexByYear();
+    KS.list.forEach(function (e) {
+      const r = idx[e.seq + '|' + KS.year];
+      const rec = { r: ['', '', '', ''], has: false };
+      if (r) {
+        for (let i = 0; i < 4; i++) { const v = cellText(t, r.cells, 'rep' + (i + 1)); rec.r[i] = v === '' ? '' : String(parseFloat(v)); }
+        rec.has = true;
+      }
+      KS.v[e.seq] = rec;
+    });
+    KS.dirty = false;
+  }
+
+  function kTotal(rec) {
+    let s = 0, filled = 0;
+    rec.r.forEach(function (v) { if (v !== '' && !isNaN(parseFloat(v))) { s += parseFloat(v); filled++; } });
+    return { total: Math.round(s * 100) / 100, filled: filled };
+  }
+
+  function paintKafaaRow(seq) {
+    const rec = KS.v[seq], t = kTotal(rec);
+    const tr = $('tr[data-krow="' + CSS.escape(seq) + '"]');
+    if (!tr) return;
+    const g = t.filled ? gradeOf(t.total) : '';
+    tr.querySelector('.k-total').textContent = t.filled ? t.total : '';
+    tr.querySelector('.k-grade').innerHTML = g ? '<span class="badge ' + GBADGE[g] + '">' + g + '</span>' : '';
+    tr.classList.toggle('done', t.filled === 4);
+    $$('input.k-in', tr).forEach(function (inp, i) {
+      const v = parseFloat(inp.value);
+      inp.classList.toggle('over', !isNaN(v) && v > KMAX[i]);
+    });
+  }
+
+  function paintKafaaStats() {
+    let done = 0, sum = 0; const dist = { 'ممتاز': 0, 'جيد جدا': 0, 'جيد': 0, 'مقبول': 0, 'ضعيف': 0 };
+    KS.list.forEach(function (e) {
+      const t = kTotal(KS.v[e.seq]);
+      if (t.filled === 4) { done++; sum += t.total; dist[gradeOf(t.total)]++; }
+    });
+    const set = function (id, v) { const el = $(id); if (el) el.textContent = v; };
+    set('#ks-all', KS.list.length); set('#ks-done', done); set('#ks-left', KS.list.length - done);
+    set('#ks-avg', done ? (Math.round(sum / done * 10) / 10) : '—');
+    const bar = $('#ks-bar'); if (bar) bar.style.width = (KS.list.length ? done / KS.list.length * 100 : 0) + '%';
+    const d = $('#ks-dist');
+    if (d) d.innerHTML = Object.keys(dist).map(function (g) { return '<span class="badge ' + GBADGE[g] + '">' + g + ' ' + dist[g] + '</span>'; }).join('');
+  }
+
+  function buildKafaaTable() {
+    const q = norm(KS.q);
+    let head = '<tr><th class="c-num">م</th><th class="c-name">الموظف</th>';
+    KNAMES.forEach(function (n, i) { head += '<th class="k-h">' + n + '<small>من ' + KMAX[i] + '</small></th>'; });
+    head += '<th class="k-h">المجموع<small>من ' + KMAX.reduce(function (a, b) { return a + b; }, 0) + '</small></th><th class="k-h">التقدير</th><th class="c-act"></th></tr>';
+    let body = '', shown = 0;
+    KS.list.forEach(function (e, i) {
+      if (q && norm(e.name).indexOf(q) < 0 && String(e.seq).indexOf(q) < 0) return;
+      shown++;
+      const rec = KS.v[e.seq], t = kTotal(rec), g = t.filled ? gradeOf(t.total) : '';
+      body += '<tr data-krow="' + esc(e.seq) + '"' + (t.filled === 4 ? ' class="done"' : '') + '><td class="c-num">' + (i + 1) + '</td>' +
+        '<td class="c-name"><b>' + esc(e.name) + '</b><small>' + esc(e.pos) + ' · ' + esc(e.seq) + '</small></td>';
+      for (let k = 0; k < 4; k++) body += '<td class="k-c"><input type="number" inputmode="decimal" class="k-in' + (parseFloat(rec.r[k]) > KMAX[k] ? ' over' : '') + '" data-kseq="' + esc(e.seq) + '" data-k="' + k + '" min="0" max="' + KMAX[k] + '" step="0.5" value="' + esc(rec.r[k]) + '"></td>';
+      body += '<td class="k-total">' + (t.filled ? t.total : '') + '</td><td class="k-grade">' + (g ? '<span class="badge ' + GBADGE[g] + '">' + g + '</span>' : '') + '</td>' +
+        '<td class="c-act"><button class="mini" data-kprint="' + esc(e.seq) + '" title="طباعة نموذج التقرير">' + ic('print') + '</button>' +
+        '<button class="mini x" data-kclear="' + esc(e.seq) + '" title="مسح الدرجات">✕</button></td></tr>';
+    });
+    if (!shown) body = '<tr><td colspan="9" class="tbl-empty">' + (KS.list.length ? 'لا توجد نتائج مطابقة' : 'لا يوجد موظفون مسجّلون في هذه المدرسة') + '</td></tr>';
+    return '<table class="tm-grid kf-grid"><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
+  }
+
+  function repaintKafaa() {
+    const host = $('#kf-host');
+    if (host) host.innerHTML = buildKafaaTable();
+    paintKafaaStats();
+    paintKState();
+  }
+  function paintKState() {
+    const el = $('#kf-state'); if (!el) return;
+    el.className = 'save-state ' + (KS.dirty ? 'dirty' : 'ok');
+    el.textContent = KS.dirty ? 'جارٍ الحفظ…' : 'محفوظ';
+  }
+  function markKDirty() {
+    KS.dirty = true; paintKState();
+    clearTimeout(KS.timer);
+    KS.timer = setTimeout(function () { saveKafaa(true); }, 1400);
+  }
+
+  function saveKafaa(silent) {
+    clearTimeout(KS.timer);
+    const t = 'repot', m = model(t), cols = m.cols;
+    const idx = repIndexByYear();
+    const ec = model('empolye').cols;
+    let saved = 0, incomplete = 0;
+    KS.list.forEach(function (e) {
+      const rec = KS.v[e.seq], tt = kTotal(rec);
+      if (!tt.filled) return;
+      if (tt.filled < 4) incomplete++;
+      const row = idx[e.seq + '|' + KS.year];
+      const cells = row ? row.cells : new Array(cols.length).fill(null);
+      const set = function (k, v) { const i = cols.indexOf(k); if (i >= 0) cells[i] = v; };
+      if (!row) {
+        const eg = function (k) { const i = ec.indexOf(k); return i >= 0 ? e.cells[i] : null; };
+        ['SEQ', 'flag', 'birthday', 'birth', 'qualified', 'assignation', 'D_qualified', 'side', 'record', 'bank', 'subbank', 'no_acc', 'Tel', 'designation', 'no_designation', 'D_designation', 'D_bailiff', 'no_class', 'class_now', 'D_class', 'postion', 'Case_Pos', 'school'].forEach(function (k) { set(k, eg(k)); });
+        set('NAME', e.name); set('SEX', eg('SEX')); set('C1', false); set('C2', false); set('C3', false); set('a_c', false);
+      }
+      for (let i = 0; i < 4; i++) set('rep' + (i + 1), rec.r[i] === '' ? null : parseFloat(rec.r[i]));
+      if (tt.filled === 4) {
+        const g = gradeOf(tt.total);
+        set('rep5', tt.total); set('rep6', g); set('rep7', GCODE[g]);
+      }
+      set('d_td', KS.from); set('as_td', KS.to);
+      if (!row) m.rows.push({ cells: cells, orig: -1 });
+      saved++;
+    });
+    commit(t);
+    KS.dirty = false; paintKState();
+    if (!silent) toast('تم حفظ ' + saved + ' تقرير كفاءة' + (incomplete ? ' (منها ' + incomplete + ' غير مكتمل)' : ''));
+  }
+
+  function kafaaListPaper() {
+    let rows = '', n = 0;
+    KS.list.forEach(function (e) {
+      const rec = KS.v[e.seq], t = kTotal(rec), g = t.filled === 4 ? gradeOf(t.total) : '';
+      n++;
+      rows += '<tr><td>' + n + '</td><td>' + esc(e.name) + '</td><td>' + esc(e.pos) + '</td>' +
+        rec.r.map(function (v) { return '<td style="text-align:center">' + esc(v) + '</td>'; }).join('') +
+        '<td style="text-align:center;font-weight:700">' + (t.filled ? t.total : '') + '</td><td style="text-align:center">' + g + '</td><td style="width:70px"></td></tr>';
+    });
+    return '<div class="paper">' + paperHead('كشف درجات تقارير الكفاءة', 'مدرسة ' + KS.school + ' — للمدة من ' + KS.from + ' إلى ' + KS.to) +
+      '<table><thead><tr><th>م</th><th>الاسم</th><th>الوظيفة</th>' + KNAMES.map(function (k, i) { return '<th>' + k + '<br><small>' + KMAX[i] + '</small></th>'; }).join('') +
+      '<th>المجموع</th><th>التقدير</th><th>التوقيع</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+      '<div class="p-sign"><div>مدير المدرسة<br><br>يعتمد</div><div>الأمين الإداري<br><br></div><div>مراقبة التعليم<br><br></div></div></div>';
+  }
+
+  function renderKafaaEntry() {
+    if (KS.dirty && KS.list.length) saveKafaa(true);
+    setTitle('إدخال تقارير الكفاءة', 'تسجيل درجات الأداء السنوية للموظفين');
+    S.vs = null;
+    const schools = schoolList();
+    if (!KS.school || schools.indexOf(KS.school) < 0) KS.school = schools[0] || '';
+    if (!KS.from) periodDefault();
+    loadKafaa();
+    const yrs = []; for (let y = new Date().getFullYear(); y >= 2012; y--) yrs.push(y);
+    $('#view').innerHTML =
+      headerBar('إدخال تقارير الكفاءة', 'أدخل درجات البنود الأربعة — يُحسب المجموع والتقدير تلقائياً ويُحفظ مباشرة',
+        '<span id="kf-state" class="save-state ok">محفوظ</span>' +
+        '<button class="btn btn-soft" data-kf="bulk">' + ic('edit') + 'درجات موحّدة</button>' +
+        '<button class="btn btn-outline" data-kf="forms">' + ic('file') + 'طباعة كل النماذج</button>' +
+        '<button class="btn btn-primary" data-kf="list">' + ic('print') + 'طباعة كشف الدرجات</button>') +
+      '<div class="card tm-controls"><div class="ctl"><label>المدرسة</label><select class="select" id="kf-school">' + schools.map(function (s) { return opt(s, s, KS.school); }).join('') + '</select></div>' +
+      '<div class="ctl sm"><label>سنة التقرير</label><select class="select" id="kf-year">' + yrs.map(function (y) { return opt(y, y, KS.year); }).join('') + '</select></div>' +
+      '<div class="ctl sm"><label>من تاريخ</label><input class="input" id="kf-from" value="' + esc(KS.from) + '" placeholder="dd/mm/yyyy"></div>' +
+      '<div class="ctl sm"><label>إلى تاريخ</label><input class="input" id="kf-to" value="' + esc(KS.to) + '" placeholder="dd/mm/yyyy"></div>' +
+      '<div class="ctl grow"><label>بحث</label><div class="search-box" style="max-width:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="kf-q" placeholder="ابحث بالاسم أو رقم المنظومة…" value="' + esc(KS.q) + '"></div></div></div>' +
+      '<div class="tm-stats">' +
+      '<div class="kpi"><span>الموظفون</span><b id="ks-all">0</b></div>' +
+      '<div class="kpi green"><span>تقارير مكتملة</span><b id="ks-done">0</b><i class="rbar"><u id="ks-bar"></u></i></div>' +
+      '<div class="kpi amber"><span>المتبقي</span><b id="ks-left">0</b></div>' +
+      '<div class="kpi"><span>متوسط الدرجات</span><b id="ks-avg">—</b></div>' +
+      '<div class="kpi wide"><span>توزيع التقديرات</span><div id="ks-dist" class="dist"></div></div></div>' +
+      '<div class="callout" style="margin-bottom:12px">' + ic('alert') + '<div>سلّم التقدير: ممتاز ٨٥ فأكثر · جيد جداً ٧٥–٨٤ · جيد ٦٥–٧٤ · مقبول ٥٠–٦٤ · ضعيف أقل من ٥٠. الدرجة التي تتجاوز الحد الأقصى للبند تظهر باللون الأحمر.</div></div>' +
+      '<div class="tm-wrap" id="kf-host"></div>';
+    repaintKafaa();
+
+    $('#kf-school').addEventListener('change', function () { saveKafaa(true); KS.school = this.value; loadKafaa(); repaintKafaa(); });
+    $('#kf-year').addEventListener('change', function () { saveKafaa(true); KS.year = +this.value; periodDefault(); $('#kf-from').value = KS.from; $('#kf-to').value = KS.to; loadKafaa(); repaintKafaa(); });
+    $('#kf-from').addEventListener('change', function () { KS.from = this.value.trim(); markKDirty(); });
+    $('#kf-to').addEventListener('change', function () { KS.to = this.value.trim(); markKDirty(); });
+    $('#kf-q').addEventListener('input', debounce(function (e) { KS.q = e.target.value; repaintKafaa(); }, 160));
+    S.printFn = function () { printHTML(kafaaListPaper()); };
+  }
+
+  function onKafaaInput(e) {
+    const inp = e.target.closest && e.target.closest('input.k-in');
+    if (!inp) return;
+    const seq = inp.getAttribute('data-kseq'), k = +inp.getAttribute('data-k');
+    KS.v[seq].r[k] = inp.value.trim();
+    paintKafaaRow(seq); paintKafaaStats(); markKDirty();
+  }
+
+  function onKafaaKey(e) {
+    const inp = e.target.closest && e.target.closest('input.k-in');
+    if (!inp) return;
+    const dirs = { Enter: [1, 0], ArrowDown: [1, 0], ArrowUp: [-1, 0] };
+    const d = dirs[e.key];
+    if (!d) return;
+    e.preventDefault();
+    const tr = d[0] > 0 ? inp.closest('tr').nextElementSibling : inp.closest('tr').previousElementSibling;
+    if (tr) { const nx = tr.querySelector('input.k-in[data-k="' + inp.getAttribute('data-k') + '"]'); if (nx) { nx.focus(); nx.select(); } }
+  }
+
+  function onKafaaClick(e) {
+    const pr = e.target.closest('[data-kprint]');
+    if (pr) { saveKafaa(true); printHTML(kafaaPaper(pr.getAttribute('data-kprint'), String(KS.year))); return true; }
+    const cl = e.target.closest('[data-kclear]');
+    if (cl) { KS.v[cl.getAttribute('data-kclear')].r = ['', '', '', '']; repaintKafaa(); markKDirty(); return true; }
+    const kf = e.target.closest('[data-kf]');
+    if (!kf) return false;
+    const act = kf.getAttribute('data-kf');
+    if (act === 'list') { saveKafaa(true); printHTML(kafaaListPaper()); }
+    else if (act === 'forms') {
+      saveKafaa(true);
+      const done = KS.list.filter(function (x) { return kTotal(KS.v[x.seq]).filled; });
+      if (!done.length) { toast('لا توجد تقارير مدخلة للطباعة', 'warn'); return true; }
+      printHTML(done.map(function (x) { return kafaaPaper(x.seq, String(KS.year)); }).join(''));
+    } else if (act === 'bulk') {
+      const ov = openModal('<div class="modal-head"><h3>تعيين درجات موحّدة</h3><div class="spacer"></div><button class="modal-close" data-x="1">' + ic('close') + '</button></div>' +
+        '<div class="modal-body"><div class="callout">' + ic('alert') + '<div>تُطبَّق الدرجات على الموظفين الذين لم تُدخل لهم أي درجة فقط، ولا تغيّر ما أدخلته سابقاً.</div></div>' +
+        '<div class="form-grid" style="margin-top:14px">' + KNAMES.map(function (n, i) { return '<div class="field"><label>' + n + ' (من ' + KMAX[i] + ')</label><input class="input" type="number" data-b="' + i + '" value="' + KMAX[i] + '" min="0" max="' + KMAX[i] + '" step="0.5"></div>'; }).join('') + '</div></div>' +
+        '<div class="modal-foot"><div class="spacer"></div><button class="btn btn-outline" data-x="1">إلغاء</button><button class="btn btn-primary" data-ok="1">تطبيق</button></div>', 'sm');
+      ov.addEventListener('click', function (ev) {
+        if (ev.target.closest('[data-x]')) { closeModal(); return; }
+        if (!ev.target.closest('[data-ok]')) return;
+        const vals = $$('[data-b]', ov).map(function (i, k) { return String(Math.min(KMAX[k], Math.max(0, parseFloat(i.value) || 0))); });
+        let c = 0;
+        KS.list.forEach(function (x) { const r = KS.v[x.seq]; if (r.r.every(function (v) { return v === ''; })) { r.r = vals.slice(); c++; } });
+        closeModal(); repaintKafaa(); markKDirty();
+        toast('تم تطبيق الدرجات على ' + c + ' موظف');
+      });
+    }
+    return true;
+  }
+
+  /* ===================== لوحة المعلومات الجديدة ===================== */
+  function renderDashboard() {
+    setTitle('لوحة المعلومات', 'نظرة عامة على المنظومة');
+    S.vs = null;
+    const emp = countOf('empolye'), sch = countOf('SCHOOLS'), nes = countOf('NESAB'), des = countOf('Descunt'), rep = countOf('repot');
+    const hr = new Date().getHours();
+    const greet = hr < 12 ? 'صباح الخير' : hr < 18 ? 'مساء الخير' : 'مساء النور';
+
+    const stats = [
+      { label: 'الموظفون', val: emp, icon: 'users', c: '#0e6e5c', bg: '#e6f4f0', href: '#/t/empolye' },
+      { label: 'المدارس', val: sch, icon: 'school', c: '#175cd3', bg: '#eff8ff', href: '#/schools' },
+      { label: 'الكادر التعليمي', val: nes, icon: 'book', c: '#b54708', bg: '#fffaeb', href: '#/t/NESAB' },
+      { label: 'تقارير الكفاءة', val: rep, icon: 'file', c: '#067647', bg: '#ecfdf3', href: '#/kafaa' },
+      { label: 'سجلات خصم الغياب', val: des, icon: 'calendar', c: '#6941c6', bg: '#f4f3ff', href: '#/t/Descunt' },
+      { label: 'كشوف التمام المحفوظة', val: model('TAMAM_ARC').rows.filter(function (r) { return monthIdx(cellText('TAMAM_ARC', r.cells, 'MUN_EDIT')) >= 0; }).length, icon: 'check', c: '#c4320a', bg: '#fef3f2', href: '#/tamam' }
+    ];
+    const statsHtml = stats.map(function (s) {
+      return '<a class="stat" href="' + s.href + '" style="--c:' + s.c + ';--cb:' + s.bg + '"><div class="stat-ico">' + ic(s.icon) + '</div><div><b>' + s.val + '</b><span>' + esc(s.label) + '</span></div></a>';
+    }).join('');
+
+    // توزيع الوظائف
+    const by = {};
+    model('empolye').rows.forEach(function (r) { const k = cellText('empolye', r.cells, 'postion') || 'غير محدد'; by[k] = (by[k] || 0) + 1; });
+    const top = Object.keys(by).map(function (k) { return { k: k, v: by[k] }; }).sort(function (a, b) { return b.v - a.v; }).slice(0, 8);
+    const max = top.length ? top[0].v : 1;
+    const bars = top.map(function (x) {
+      return '<div class="bar-row"><span class="name" title="' + esc(x.k) + '">' + esc(x.k) + '</span><span class="bar-track"><span class="bar-fill" style="width:' + Math.round(x.v / max * 100) + '%"></span></span><span class="val">' + x.v + '</span></div>';
+    }).join('') || '<div class="tbl-empty">لا توجد بيانات</div>';
+
+    // توزيع تقديرات الكفاءة لأحدث سنة
+    const ry = {}; let lastYear = '';
+    model('repot').rows.forEach(function (r) {
+      const y = yearOf(cellText('repot', r.cells, 'as_td')) || yearOf(cellText('repot', r.cells, 'd_td'));
+      if (!y) return;
+      (ry[y] = ry[y] || []).push(cellText('repot', r.cells, 'rep6'));
+      if (y > lastYear) lastYear = y;
+    });
+    const gl = ['ممتاز', 'جيد جدا', 'جيد', 'مقبول', 'ضعيف'], gc = { 'ممتاز': '#12b76a', 'جيد جدا': '#2e90fa', 'جيد': '#f79009', 'مقبول': '#98a2b3', 'ضعيف': '#f04438' };
+    const cnt = {}; gl.forEach(function (g) { cnt[g] = 0; });
+    (ry[lastYear] || []).forEach(function (g) { if (cnt[g] != null) cnt[g]++; });
+    const tot = gl.reduce(function (s, g) { return s + cnt[g]; }, 0);
+    let acc = 0, stops = [];
+    gl.forEach(function (g) { if (!cnt[g]) return; const a = acc / tot * 100; acc += cnt[g]; stops.push(gc[g] + ' ' + a + '% ' + (acc / tot * 100) + '%'); });
+    const donut = tot ? '<div class="donut" style="background:conic-gradient(' + stops.join(',') + ')"><div><b>' + tot + '</b><span>تقرير ' + esc(lastYear) + '</span></div></div>' +
+      '<div class="donut-leg">' + gl.map(function (g) { return '<div><i style="background:' + gc[g] + '"></i>' + g + '<b>' + cnt[g] + '</b></div>'; }).join('') + '</div>' : '<div class="tbl-empty">لا توجد تقارير</div>';
+
+    // آخر عمليات الدخول
+    const logs = model('LOGIN').rows.slice(-6).reverse().map(function (r) {
+      return '<div class="log-row"><span class="avatar sm">' + esc((cellText('LOGIN', r.cells, 'ADMIN') || '?').charAt(0)) + '</span><b>' + esc(cellText('LOGIN', r.cells, 'ADMIN')) + '</b><span class="spacer"></span><small>' + esc(cellText('LOGIN', r.cells, 'date_enter')) + ' · ' + esc(cellText('LOGIN', r.cells, 'time_enter')) + '</small></div>';
+    }).join('') || '<div class="tbl-empty">لا توجد سجلات</div>';
+
+    $('#view').innerHTML =
+      '<div class="hero"><img class="hero-logo" src="assets/logo.jpg" alt="الشعار"><div class="hero-text"><small>' + esc(dateAr()) + '</small><h2>' + greet + '، ' + esc(S.user) + '</h2>' +
+      '<p>مراقبة التربية والتعليم — بلدية سلوق · منظومة إدارة المدارس والموظفين</p></div>' +
+      '<div class="hero-cta"><a class="btn btn-gold" href="#/tamam">' + ic('calendar') + 'كشف التمام</a><a class="btn btn-glass" href="#/kafaa">' + ic('file') + 'تقارير الكفاءة</a></div></div>' +
+      '<div class="grid stats" style="margin-bottom:16px">' + statsHtml + '</div>' +
+      '<div class="three-col">' +
+      '<div class="card"><div class="card-head"><h3>توزيع الوظائف</h3><div class="spacer"></div><a class="btn btn-sm btn-outline" href="#/t/empolye">الموظفون</a></div><div class="card-body"><div class="bars">' + bars + '</div></div></div>' +
+      '<div class="card"><div class="card-head"><h3>تقديرات الكفاءة</h3><div class="spacer"></div><a class="btn btn-sm btn-outline" href="#/t/repot">كل التقارير</a></div><div class="card-body donut-wrap">' + donut + '</div></div>' +
+      '<div class="card"><div class="card-head"><h3>إجراءات سريعة</h3></div><div class="card-body"><div class="quick">' +
+      '<a href="#/tamam">' + ic('calendar') + 'كشف التمام</a><a href="#/kafaa">' + ic('file') + 'تقارير الكفاءة</a>' +
+      '<a href="#/t/empolye" data-quick-add="empolye">' + ic('plus') + 'إضافة موظف</a><a href="#/t/Descunt">' + ic('clock') + 'خصم الغياب</a>' +
+      '<a href="#/reports">' + ic('print') + 'التقارير</a><a href="#/schools">' + ic('school') + 'المدارس</a></div></div></div></div>' +
+      '<div class="card" style="margin-top:16px"><div class="card-head"><h3>آخر عمليات الدخول</h3><div class="spacer"></div><a class="btn btn-sm btn-outline" href="#/t/LOGIN">السجل الكامل</a></div><div class="card-body tight">' + logs + '</div></div>';
+
+    $('#status-records').textContent = 'السجلات: ' + emp + ' موظف · ' + sch + ' مدرسة';
+    S.printFn = function () { printTableGeneric('empolye', 'بيانات الموظفين'); };
+  }
+
+  // نقطة ربط الأحداث لدى فتح الصفحات الجديدة
+  function onViewExtClick(e) {
+    if (currentRoute() === 'tamam') return onTamamClick(e);
+    if (currentRoute() === 'kafaa') return onKafaaClick(e);
+    return false;
+  }
+  function currentRoute() { return (location.hash || '').replace(/^#\/?/, '').split('/')[0]; }
+
   // واجهة تطوير بسيطة (للتوسعة لاحقًا)
-  window.Madrasa = { state: S, model: model, reset: resetAll };
+  window.Madrasa = { state: S, model: model, reset: resetAll, version: '2.0' };
 
   init();
 
