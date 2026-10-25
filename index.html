@@ -5,24 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
 <title>منظومة المدارس — مراقبة التربية والتعليم سلوق</title>
+<meta name="theme-color" content="#062e26">
+<link rel="icon" type="image/jpeg" href="assets/logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="assets/app.css">
 </head>
 <body>
 
 <!-- ==================== شاشة الدخول ==================== -->
 <div id="login-screen">
+  <div class="login-shell">
+    <div class="login-art">
+      <img class="big-logo" src="assets/logo.jpg" alt="شعار مراقبة التربية والتعليم سلوق">
+      <h1>منظومة المدارس</h1>
+      <p>وزارة التربية والتعليم<br>مراقبة التربية والتعليم — بلدية سلوق</p>
+      <div class="feat"><span>كشف التمام الأفقي</span><span>تقارير الكفاءة</span><span>بيانات الموظفين</span><span>الإجازات والخصومات</span><span>طباعة رسمية A4</span></div>
+    </div>
   <div class="login-card">
     <div class="login-brand">
-      <div class="logo-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 10 12 5 2 10l10 5 10-5Z"/>
-          <path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/>
-          <path d="M22 10v6"/>
-        </svg>
-      </div>
+      <img class="login-mini-logo" src="assets/logo.jpg" alt="">
       <div>
-        <h1>منظومة المدارس</h1>
-        <p>مراقبة التربية والتعليم — سلوق</p>
+        <h1>تسجيل الدخول</h1>
+        <p>أدخل بيانات حسابك للمتابعة</p>
       </div>
     </div>
 
@@ -54,7 +60,8 @@
       الحساب الافتراضي للمسؤول: <code>admin</code> / <code>admin</code><br>
       يمكن تغيير المستخدمين وكلمات المرور من شاشة «المستخدمون».
     </div>
-    <div class="login-foot">منظومة المدارس — نسخة الويب المحلية · جميع البيانات مضمّنة</div>
+    <div class="login-foot">منظومة المدارس 2.0 — مراقبة التربية والتعليم سلوق · جميع البيانات محفوظة محلياً</div>
+  </div>
   </div>
 </div>
 
@@ -62,18 +69,14 @@
 <div id="app" hidden>
   <aside id="sidebar">
     <div class="brand">
-      <div class="logo-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/><path d="M22 10v6"/>
-        </svg>
-      </div>
+      <img class="brand-logo" src="assets/logo.jpg" alt="الشعار">
       <div class="brand-text">
         <b>منظومة المدارس</b>
-        <span>مراقبة التربية والتعليم سلوق</span>
+        <span>مراقبة التربية والتعليم — سلوق</span>
       </div>
     </div>
     <nav class="nav" id="nav"></nav>
-    <div class="sidebar-foot" id="sidebar-foot">الإصدار 1.0 · قاعدة البيانات مضمّنة</div>
+    <div class="sidebar-foot" id="sidebar-foot">الإصدار 2.0 · قاعدة البيانات مضمّنة</div>
   </aside>
 
   <div id="main">
